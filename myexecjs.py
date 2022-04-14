@@ -41,6 +41,12 @@ node_wrap = lambda original,cur: """
 })
 """ % (original,cur)
 
+def js_encodeURIComponent(b):
+    ans = ''
+    for c in b:
+        ans += '%%%s' % (('00' if not c else ('0' if c < 16 else '')) + hex(c)[2:])
+    return ans
+
 class JsContext():
     def __init__(self,source = ''):
         self._source = source
@@ -50,8 +56,12 @@ class JsContext():
             if use_js_eval: source = "eval('')"
             else: source = 'undefined'
         elif use_js_eval:
-            source = source.replace('`','\\`')
-            source = 'eval(`%s`)' % source
+            # 给单行且使用eval的情况加上括号，如eval('({})')，多行情况弃疗
+            if '\n' not in source:
+                source = f'({source})'
+            source_utf8 = js_encodeURIComponent(source.encode(encoding = 'utf-8'))
+            # print('?????????',source_utf8)#
+            source = 'eval(decodeURIComponent("%s"))' % (source_utf8)
         return node_wrap(self._source,source)
 
     def eval(self,source,use_js_eval = False):
